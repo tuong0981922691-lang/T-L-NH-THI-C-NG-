@@ -1,0 +1,69 @@
+﻿apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: octopus-manager
+  namespace: default
+  labels:
+    app: octopus-manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: octopus-manager
+  template:
+    metadata:
+      labels:
+        app: octopus-manager
+    spec:
+      serviceAccountName: octopus-manager-sa
+      containers:
+        - name: octopus-manager
+          image: ghcr.io/a1-steel-core/octopus-manager:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: REDIS_URL
+              value: "redis://redis.default.svc.cluster.local:6379/0"
+            - name: MANAGER_TOKEN
+              value: "a3f5c1e7b9d24f6e8c3a1b2d4f6e7c8a1b2d3f4e5a6c7b8d9e0f1a2b3c4d5e6"
+            - name: ALERT_WEBHOOK
+              value: ""
+            - name: NAMESPACE
+              value: "default"
+            - name: LOCK_FILE_DIR
+              value: "/tmp/octopus_locks"
+            - name: KUBECTL_BIN
+              value: "kubectl"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 2
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            timeoutSeconds: 2
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          volumeMounts:
+            - name: tmp-locks
+              mountPath: /tmp/octopus_locks
+      volumes:
+        - name: tmp-locks
+          emptyDir: {}
+---
+# End of manager-deployment.yaml
